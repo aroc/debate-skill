@@ -59,15 +59,17 @@ By default, the skill debates with the opposite model (Claude vs Codex). You can
 
 ### Available Models
 
+The `--model` value passes through to the CLI, so use whatever that CLI accepts.
+
 **Claude CLI:**
-- `opus` - Claude Opus (most capable)
-- `sonnet` - Claude Sonnet (balanced)
-- `haiku` - Claude Haiku (fastest)
+- Shorthand: `opus`, `sonnet`, `haiku`
+- Full IDs: `claude-opus-4-5-20251101`, `claude-sonnet-4-6-20250514`, etc.
+- Run `claude --help` to see available models
 
 **Codex CLI:**
-- `o3` - OpenAI o3
-- `gpt-4.1` - GPT-4.1
-- (uses your Codex config default if not specified)
+- Examples: `o3`, `o4-mini`, `gpt-4.1`, `gpt-5.3-codex`
+- Run `codex --help` to see available models
+- Defaults to your `~/.codex/config.toml` setting
 
 ### Quick Mode
 

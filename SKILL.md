@@ -43,15 +43,17 @@ This skill activates when:
 
 ### Available Models
 
+The `--model` value is passed directly to the CLI, so use whatever model identifiers that CLI accepts.
+
 **Claude CLI models:**
-- `opus` - Claude Opus (most capable)
-- `sonnet` - Claude Sonnet (balanced)
-- `haiku` - Claude Haiku (fastest)
+- Shorthand: `opus`, `sonnet`, `haiku`
+- Full IDs: `claude-opus-4-5-20251101`, `claude-sonnet-4-6-20250514`, etc.
+- Check available models: `claude --help` or your Claude config
 
 **Codex CLI models:**
-- `o3` - OpenAI o3
-- `gpt-4.1` - GPT-4.1
-- Default is determined by Codex config
+- Examples: `o3`, `o4-mini`, `gpt-4.1`, `gpt-5.3-codex`
+- Check available models: `codex --help` or your Codex config
+- Default is determined by your `~/.codex/config.toml`
 
 ## Orchestration Steps
 
