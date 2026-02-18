@@ -20,8 +20,38 @@ This skill activates when:
 
 ## Arguments
 
+- `--vs <claude|codex>`: Choose opponent (default: auto-detect opposite of current)
+- `--model <model>`: Specify opponent's model (e.g., `opus`, `sonnet`, `o3`, `gpt-4.1`)
 - `--quick`: Single round only, get feedback without iterating to consensus
 - Topic: Any technical question, code review request, or decision point
+
+### Examples
+
+```bash
+# Debate with Codex (default when running from Claude)
+/debate should we use Redis or Memcached?
+
+# Explicitly debate with Claude (e.g., Claude vs Claude)
+/debate --vs claude --model opus should we use a monorepo?
+
+# Debate with Codex using a specific model
+/debate --vs codex --model o3 review my authentication changes
+
+# Quick single-round feedback from Codex
+/debate --quick --vs codex what do you think of this API design?
+```
+
+### Available Models
+
+**Claude CLI models:**
+- `opus` - Claude Opus (most capable)
+- `sonnet` - Claude Sonnet (balanced)
+- `haiku` - Claude Haiku (fastest)
+
+**Codex CLI models:**
+- `o3` - OpenAI o3
+- `gpt-4.1` - GPT-4.1
+- Default is determined by Codex config
 
 ## Orchestration Steps
 
@@ -57,19 +87,55 @@ As Claude, analyze the topic and formulate a clear proposal:
 - [Point 3]
 ```
 
-### Step 3: Invoke Opposing Model
+### Step 3: Determine Opponent
 
-Use the invoke script to get the other model's critique:
+Parse the user's arguments to determine:
+1. **Opponent CLI**: From `--vs` flag, or default to the opposite of current (if running from Claude, default to codex; if from Codex, default to claude)
+2. **Opponent Model**: From `--model` flag, or omit to use CLI default
+
+Detect current environment:
+```bash
+# Check if running from Claude
+if [ -n "$CLAUDE_SESSION_ID" ] || [ -n "$CLAUDE_CODE_ENTRYPOINT" ]; then
+    CURRENT="claude"
+    DEFAULT_OPPONENT="codex"
+else
+    CURRENT="codex"
+    DEFAULT_OPPONENT="claude"
+fi
+```
+
+### Step 4: Invoke Opponent
+
+Use the invoke script with explicit opponent and optional model:
 
 ```bash
-bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh "
-You are reviewing a proposal from Claude.
+# Basic invocation (opponent required)
+bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+    --opponent codex \
+    "Your prompt here"
+
+# With specific model
+bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+    --opponent claude \
+    --model opus \
+    "Your prompt here"
+```
+
+Example critique prompt:
+
+```bash
+bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+    --opponent "$OPPONENT" \
+    ${MODEL:+--model "$MODEL"} \
+    "
+You are reviewing a proposal.
 
 ## Context
 [Include gathered context]
 
 ## Proposal
-[Claude's proposal]
+[Your proposal]
 
 ## Your Task
 Evaluate this proposal critically. Consider:
@@ -85,7 +151,7 @@ End your response with exactly one verdict:
 "
 ```
 
-### Step 4: Parse Verdict
+### Step 5: Parse Verdict
 
 ```bash
 python3 /Users/ericanderson/projects/debate-skill/scripts/parse_verdict.py /tmp/debate_response.txt
@@ -93,23 +159,23 @@ python3 /Users/ericanderson/projects/debate-skill/scripts/parse_verdict.py /tmp/
 
 This returns: `AGREE|REVISE|DISAGREE` and the explanation.
 
-### Step 5: Iterate Based on Verdict
+### Step 6: Iterate Based on Verdict
 
 **If AGREE:**
 - Consensus reached! Present final solution to user.
 
 **If REVISE:**
 - Incorporate the suggested changes into your proposal
-- Re-invoke the opposing model with the revised proposal
+- Re-invoke the opponent with the revised proposal
 - Continue until AGREE or max rounds
 
 **If DISAGREE:**
 - Address the fundamental concerns raised
 - Formulate a counter-proposal or clarification
-- Re-invoke the opposing model
+- Re-invoke the opponent
 - Continue until AGREE or max rounds
 
-### Step 6: Handle Max Rounds
+### Step 7: Handle Max Rounds
 
 If 5 rounds pass without consensus, generate a disagreement summary (see below).
 
@@ -123,23 +189,24 @@ When `--quick` flag is present:
 
 ## Output Format
 
-Display the debate to the user in this format:
+Display the debate to the user in this format. Use the actual model names (e.g., "CLAUDE (opus)" or "CODEX (o3)"):
 
 ```
 ═══════════════════════════════════════════════
 CONSENSUS DEBATE: [Topic]
+Participants: [Current] vs [Opponent] ([model if specified])
 ═══════════════════════════════════════════════
 
 --- Round 1 ---
-CLAUDE: [proposal]
+[CURRENT]: [proposal]
 
-CODEX: [critique]
+[OPPONENT]: [critique]
 Verdict: [AGREE|REVISE|DISAGREE]
 
 --- Round 2 --- (if needed)
-CLAUDE: [revised proposal]
+[CURRENT]: [revised proposal]
 
-CODEX: [response]
+[OPPONENT]: [response]
 Verdict: [AGREE|REVISE|DISAGREE]
 
 ═══════════════════════════════════════════════
@@ -161,7 +228,7 @@ NO CONSENSUS REACHED (5 rounds)
 - [Things both models agreed on]
 
 ## Points of Disagreement
-- [Issue 1]: Claude thinks X, Codex thinks Y
+- [Issue 1]: [Current] thinks X, [Opponent] thinks Y
 - [Issue 2]: ...
 
 ## Root Cause of Disagreement
@@ -196,7 +263,7 @@ fi
 ### Initial Critique Request
 
 ```
-You are [Codex/Claude], reviewing a proposal from [Claude/Codex].
+You are {opponent_name}, reviewing a proposal from {current_name}.
 
 ## Original Question
 {user_topic}
@@ -226,7 +293,7 @@ End with exactly one of:
 ### Revision Request
 
 ```
-You are [Codex/Claude], continuing a debate with [Claude/Codex].
+You are {opponent_name}, continuing a debate with {current_name}.
 
 ## Original Question
 {user_topic}

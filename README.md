@@ -42,19 +42,47 @@ ln -s ~/projects/debate-skill ~/.claude/skills/debate
 /debate should we use Redux or Context for state management?
 ```
 
+### Choose Your Opponent
+
+By default, the skill debates with the opposite model (Claude vs Codex). You can explicitly choose:
+
+```bash
+# Debate with Codex
+/debate --vs codex should we use a monorepo?
+
+# Debate with Claude (even from Claude - Claude vs Claude)
+/debate --vs claude --model opus review this architecture
+
+# Specify the opponent's model
+/debate --vs codex --model o3 what's the best caching strategy?
+```
+
+### Available Models
+
+**Claude CLI:**
+- `opus` - Claude Opus (most capable)
+- `sonnet` - Claude Sonnet (balanced)
+- `haiku` - Claude Haiku (fastest)
+
+**Codex CLI:**
+- `o3` - OpenAI o3
+- `gpt-4.1` - GPT-4.1
+- (uses your Codex config default if not specified)
+
 ### Quick Mode
 
 Get a single round of feedback without iterating to consensus:
 
 ```bash
 /debate --quick is this approach correct?
+/debate --quick --vs claude --model haiku sanity check this function
 ```
 
 ## How It Works
 
-1. **User invokes** `/debate` with a topic
-2. **Claude formulates** an initial proposal with analysis
-3. **Codex critiques** the proposal and provides a verdict:
+1. **User invokes** `/debate` with a topic and optional opponent/model
+2. **Current model formulates** an initial proposal with analysis
+3. **Opponent critiques** the proposal and provides a verdict:
    - `AGREE`: Proposal is sound
    - `REVISE`: Accept with specific changes
    - `DISAGREE`: Fundamental issues need addressing
@@ -66,6 +94,7 @@ Get a single round of feedback without iterating to consensus:
 ```
 ═══════════════════════════════════════════════
 CONSENSUS DEBATE: Should we memoize this component?
+Participants: Claude (opus) vs Codex (o3)
 ═══════════════════════════════════════════════
 
 --- Round 1 ---
