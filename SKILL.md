@@ -172,8 +172,18 @@ End your response with exactly one verdict:
 
 ### Step 5: Parse Verdict
 
+The invoke script outputs the response file path to stdout. Capture it and parse:
+
 ```bash
-python3 $SKILL_DIR/scripts/parse_verdict.py /tmp/debate_response.txt
+# Capture the output file path from the invoke script
+RESPONSE_FILE=$(bash $SKILL_DIR/scripts/invoke_other.sh \
+    --opponent "$OPPONENT" \
+    ${MODEL:+--model "$MODEL"} \
+    ${REASONING:+--reasoning "$REASONING"} \
+    "Your critique prompt here")
+
+# Parse the verdict from the response
+python3 $SKILL_DIR/scripts/parse_verdict.py "$RESPONSE_FILE"
 ```
 
 This returns: `AGREE|REVISE|DISAGREE` and the explanation.

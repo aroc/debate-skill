@@ -9,9 +9,21 @@
 #   --reasoning  Reasoning effort level for Codex: "low", "medium", "high" (default: from config)
 #   prompt       The prompt text (last positional argument)
 #
-# Output file path is printed to stdout
+# Output file path is printed to stdout (and ONLY the file path)
 
 set -e
+
+# Initialize PROMPT_FILE to empty to prevent env var injection
+# This MUST happen before any trap is set
+PROMPT_FILE=""
+
+# Cleanup function - only removes PROMPT_FILE if we created it
+cleanup() {
+    if [ -n "$PROMPT_FILE" ] && [ -f "$PROMPT_FILE" ]; then
+        rm -f "$PROMPT_FILE" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
 
 # Parse arguments
 OPPONENT=""
@@ -22,14 +34,26 @@ PROMPT=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --opponent)
+            if [ -z "${2:-}" ] || [[ "$2" == --* ]]; then
+                echo "ERROR: --opponent requires a value (got '${2:-}')" >&2
+                exit 1
+            fi
             OPPONENT="$2"
             shift 2
             ;;
         --model)
+            if [ -z "${2:-}" ] || [[ "$2" == --* ]]; then
+                echo "ERROR: --model requires a value (got '${2:-}')" >&2
+                exit 1
+            fi
             MODEL="$2"
             shift 2
             ;;
         --reasoning)
+            if [ -z "${2:-}" ] || [[ "$2" == --* ]]; then
+                echo "ERROR: --reasoning requires a value (got '${2:-}')" >&2
+                exit 1
+            fi
             REASONING="$2"
             shift 2
             ;;
@@ -44,12 +68,6 @@ done
 # Use mktemp for output file to avoid race conditions
 OUTPUT_FILE=$(mktemp /tmp/debate_response.XXXXXX)
 TIMEOUT_SECONDS=120
-
-# Cleanup function
-cleanup() {
-    rm -f "$PROMPT_FILE" 2>/dev/null || true
-}
-trap cleanup EXIT
 
 # Validate opponent
 if [ -z "$OPPONENT" ]; then
@@ -120,10 +138,11 @@ run_codex() {
     args+=(-o "$OUTPUT_FILE")
     args+=("$(cat "$PROMPT_FILE")")
 
+    # Redirect both stdout and stderr to stderr to keep stdout clean for file path output
     if [ -n "$TIMEOUT_CMD" ]; then
-        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" codex "${args[@]}" 2>&1
+        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" codex "${args[@]}" >&2 2>&1
     else
-        codex "${args[@]}" 2>&1
+        codex "${args[@]}" >&2 2>&1
     fi
 }
 

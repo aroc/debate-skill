@@ -1,163 +1,20 @@
-# Debate Skill for Claude Code
+# debate-skill
 
-Orchestrate a back-and-forth debate between two AI models (Claude and Codex) until they reach consensus on a technical decision, code review, or root cause analysis.
-
-## Features
-
-- **Consensus-driven**: Models iterate until they agree on a solution
-- **Bidirectional**: Works when invoked from either Claude or Codex
-- **Structured verdicts**: Clear AGREE/REVISE/DISAGREE outcomes
-- **Quick mode**: Get a single round of feedback without iteration
-- **Context-aware**: Automatically gathers git diffs and relevant code
+A Claude Code skill that orchestrates debates between Claude and Codex until they reach consensus.
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/ericanderson/debate-skill.git ~/projects/debate-skill
-
-# Create symlink to Claude Code skills directory
-mkdir -p ~/.claude/skills
-ln -s ~/projects/debate-skill ~/.claude/skills/debate
+git clone git@github.com:aroc/debate-skill.git ~/.claude/skills/debate
 ```
-
-## Requirements
-
-- Claude Code CLI (`claude`)
-- OpenAI Codex CLI (`codex`) - for cross-model debate
-- Python 3.6+ (for verdict parsing)
 
 ## Usage
 
-### Full Debate (Default)
-
 ```bash
-# Review code changes
-/debate review my proposed changes
-
-# Debug a problem
-/debate what's causing this test failure?
-
-# Architecture decision
-/debate should we use Redux or Context for state management?
-```
-
-### Choose Your Opponent
-
-By default, the skill debates with the opposite model (Claude vs Codex). You can explicitly choose:
-
-```bash
-# Debate with Codex
-/debate --vs codex should we use a monorepo?
-
-# Debate with Claude (even from Claude - Claude vs Claude)
-/debate --vs claude --model opus review this architecture
-
-# Specify the opponent's model
-/debate --vs codex --model o3 what's the best caching strategy?
-```
-
-### Available Models
-
-The `--model` value passes through to the CLI, so use whatever that CLI accepts.
-
-**Claude CLI:**
-- Shorthand: `opus`, `sonnet`, `haiku`
-- Full IDs: `claude-opus-4-5-20251101`, `claude-sonnet-4-6-20250514`, etc.
-- Run `claude --help` to see available models
-
-**Codex CLI:**
-- Examples: `o3`, `o4-mini`, `gpt-4.1`, `gpt-5.3-codex`
-- Run `codex --help` to see available models
-- Defaults to your `~/.codex/config.toml` setting
-
-### Reasoning Level (Codex only)
-
-Control how much "thinking" Codex does with `--reasoning`:
-
-```bash
-/debate --vs codex --reasoning low quick check    # Fast, less thorough
-/debate --vs codex --reasoning medium balanced    # Balanced
-/debate --vs codex --reasoning high deep analysis # Thorough, slower
-```
-
-This maps to Codex's `model_reasoning_effort` config.
-
-### Quick Mode
-
-Get a single round of feedback without iterating to consensus:
-
-```bash
+/debate should we use Redis or Memcached?
+/debate --vs codex review my changes
 /debate --quick is this approach correct?
-/debate --quick --vs claude --model haiku sanity check this function
 ```
-
-## How It Works
-
-1. **User invokes** `/debate` with a topic and optional opponent/model
-2. **Current model formulates** an initial proposal with analysis
-3. **Opponent critiques** the proposal and provides a verdict:
-   - `AGREE`: Proposal is sound
-   - `REVISE`: Accept with specific changes
-   - `DISAGREE`: Fundamental issues need addressing
-4. **Models iterate** until consensus or max rounds (5)
-5. **Final solution** presented to user
-
-## Output Example
-
-```
-═══════════════════════════════════════════════
-CONSENSUS DEBATE: Should we memoize this component?
-Participants: Claude (opus) vs Codex (o3)
-═══════════════════════════════════════════════
-
---- Round 1 ---
-CLAUDE: The UserList component re-renders frequently due to parent
-state changes. I propose wrapping it with React.memo() and using
-useCallback for the onSelect handler.
-
-CODEX: The component receives a new array reference on each render.
-React.memo alone won't help - the props will always appear different.
-REVISE: Also memoize the users array with useMemo in the parent.
-
---- Round 2 ---
-CLAUDE: Updated proposal:
-1. useMemo for users array in parent
-2. React.memo on UserList
-3. useCallback for onSelect
-
-CODEX: This addresses the root cause. The memoization chain is complete.
-AGREE: This will prevent unnecessary re-renders effectively.
-
-═══════════════════════════════════════════════
-CONSENSUS REACHED (Round 2)
-═══════════════════════════════════════════════
-Apply useMemo to the users array, wrap UserList in React.memo,
-and use useCallback for event handlers.
-```
-
-## Configuration
-
-The skill uses these defaults:
-- **Max rounds**: 5
-- **Timeout**: 120 seconds per model invocation
-- **Output file**: Unique temp file via `mktemp`
-
-## Security Note
-
-When invoking Codex as the opponent, the skill uses `--full-auto` mode which auto-approves tool use. The opponent runs in a sandboxed environment (`workspace-write`) but can still execute commands and modify files in the workspace. This is necessary for Codex to function non-interactively but means you should review any changes the opponent suggests before applying them.
-
-## Error Handling
-
-- **CLI not found**: Falls back to self-critique mode
-- **Timeout**: Reports partial results
-- **No consensus**: Generates structured disagreement summary
-
-## Files
-
-- `SKILL.md` - Skill definition and orchestration instructions
-- `scripts/invoke_other.sh` - Cross-model invocation script
-- `scripts/parse_verdict.py` - Verdict extraction utility
 
 ## License
 
