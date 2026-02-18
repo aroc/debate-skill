@@ -122,7 +122,7 @@ def main():
             }))
             sys.exit(1)
 
-        text = filepath.read_text()
+        text = filepath.read_text(encoding='utf-8', errors='replace')
 
     result = parse_verdict(text)
     print(json.dumps(result, indent=2))

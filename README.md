@@ -14,7 +14,7 @@ Orchestrate a back-and-forth debate between two AI models (Claude and Codex) unt
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/debate-skill.git ~/projects/debate-skill
+git clone https://github.com/ericanderson/debate-skill.git ~/projects/debate-skill
 
 # Create symlink to Claude Code skills directory
 mkdir -p ~/.claude/skills
@@ -141,7 +141,11 @@ and use useCallback for event handlers.
 The skill uses these defaults:
 - **Max rounds**: 5
 - **Timeout**: 120 seconds per model invocation
-- **Output file**: `/tmp/debate_response.txt`
+- **Output file**: Unique temp file via `mktemp`
+
+## Security Note
+
+When invoking Codex as the opponent, the skill uses `--full-auto` mode which auto-approves tool use. The opponent runs in a sandboxed environment (`workspace-write`) but can still execute commands and modify files in the workspace. This is necessary for Codex to function non-interactively but means you should review any changes the opponent suggests before applying them.
 
 ## Error Handling
 

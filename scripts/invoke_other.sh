@@ -6,10 +6,10 @@
 # Arguments:
 #   --opponent   Which CLI to invoke: "claude" or "codex"
 #   --model      Optional model override (e.g., "opus", "sonnet", "o3", "gpt-4.1")
-#   --reasoning  Reasoning effort level for Codex: "low", "medium", "high" (default: high)
+#   --reasoning  Reasoning effort level for Codex: "low", "medium", "high" (default: from config)
 #   prompt       The prompt text (last positional argument)
 #
-# Output is written to /tmp/debate_response.txt
+# Output file path is printed to stdout
 
 set -e
 
@@ -41,8 +41,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-OUTPUT_FILE="/tmp/debate_response.txt"
+# Use mktemp for output file to avoid race conditions
+OUTPUT_FILE=$(mktemp /tmp/debate_response.XXXXXX)
 TIMEOUT_SECONDS=120
+
+# Cleanup function
+cleanup() {
+    rm -f "$PROMPT_FILE" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 # Validate opponent
 if [ -z "$OPPONENT" ]; then
@@ -55,15 +62,28 @@ if [ "$OPPONENT" != "claude" ] && [ "$OPPONENT" != "codex" ]; then
     exit 1
 fi
 
+# Validate model (alphanumeric, hyphens, underscores, dots only - prevent injection)
+if [ -n "$MODEL" ]; then
+    if ! [[ "$MODEL" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        echo "ERROR: --model contains invalid characters: '$MODEL'" >&2
+        exit 1
+    fi
+fi
+
+# Validate reasoning (must be low, medium, or high)
+if [ -n "$REASONING" ]; then
+    if [ "$REASONING" != "low" ] && [ "$REASONING" != "medium" ] && [ "$REASONING" != "high" ]; then
+        echo "ERROR: --reasoning must be 'low', 'medium', or 'high', got '$REASONING'" >&2
+        exit 1
+    fi
+fi
+
 # Check if CLI is available
 if ! command -v "$OPPONENT" &> /dev/null; then
     echo "ERROR: $OPPONENT CLI not found. Please install it first." >&2
     echo "FALLBACK: $OPPONENT CLI not installed." > "$OUTPUT_FILE"
     exit 1
 fi
-
-# Clean up any previous response
-rm -f "$OUTPUT_FILE"
 
 echo "Invoking: $OPPONENT" >&2
 if [ -n "$MODEL" ]; then
@@ -77,59 +97,72 @@ fi
 PROMPT_FILE=$(mktemp)
 echo "$PROMPT" > "$PROMPT_FILE"
 
-# Helper function to run with optional timeout
-run_with_timeout() {
-    local cmd="$1"
-    if command -v gtimeout &> /dev/null; then
-        gtimeout "$TIMEOUT_SECONDS" bash -c "$cmd" || {
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -eq 124 ]; then
-                echo "TIMEOUT: Did not respond within ${TIMEOUT_SECONDS}s" >> "$OUTPUT_FILE"
-            fi
-            return $EXIT_CODE
-        }
+# Find timeout command (gtimeout on macOS via coreutils, timeout on Linux)
+TIMEOUT_CMD=""
+if command -v timeout &> /dev/null; then
+    TIMEOUT_CMD="timeout"
+elif command -v gtimeout &> /dev/null; then
+    TIMEOUT_CMD="gtimeout"
+fi
+
+# Build command as array to avoid injection
+run_codex() {
+    local args=(exec --full-auto)
+
+    if [ -n "$MODEL" ]; then
+        args+=(-m "$MODEL")
+    fi
+
+    if [ -n "$REASONING" ]; then
+        args+=(-c "model_reasoning_effort=$REASONING")
+    fi
+
+    args+=(-o "$OUTPUT_FILE")
+    args+=("$(cat "$PROMPT_FILE")")
+
+    if [ -n "$TIMEOUT_CMD" ]; then
+        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" codex "${args[@]}" 2>&1
     else
-        bash -c "$cmd"
+        codex "${args[@]}" 2>&1
+    fi
+}
+
+run_claude() {
+    local args=(-p)
+
+    if [ -n "$MODEL" ]; then
+        args+=(--model "$MODEL")
+    fi
+
+    args+=("$(cat "$PROMPT_FILE")")
+
+    if [ -n "$TIMEOUT_CMD" ]; then
+        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" claude "${args[@]}" > "$OUTPUT_FILE" 2>&1
+    else
+        claude "${args[@]}" > "$OUTPUT_FILE" 2>&1
     fi
 }
 
 # Invoke the specified model
 if [ "$OPPONENT" = "codex" ]; then
-    # Codex invocation - using exec for non-interactive mode
-    # --full-auto approves all actions automatically
-    # -o writes last message to file
-    # -m specifies model
-    # -c model_reasoning_effort sets thinking level
-    MODEL_ARG=""
-    if [ -n "$MODEL" ]; then
-        MODEL_ARG="-m $MODEL"
-    fi
-
-    REASONING_ARG=""
-    if [ -n "$REASONING" ]; then
-        REASONING_ARG="-c model_reasoning_effort=\"$REASONING\""
-    fi
-
-    run_with_timeout "codex exec --full-auto $MODEL_ARG $REASONING_ARG -o \"$OUTPUT_FILE\" \"\$(cat \"$PROMPT_FILE\")\"" 2>&1 || {
+    run_codex || {
         EXIT_CODE=$?
-        echo "ERROR: Codex invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+        if [ $EXIT_CODE -eq 124 ]; then
+            echo "TIMEOUT: Did not respond within ${TIMEOUT_SECONDS}s" >> "$OUTPUT_FILE"
+        else
+            echo "ERROR: Codex invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+        fi
     }
 else
-    # Claude invocation - using -p for print mode (non-interactive)
-    # --model specifies model
-    MODEL_ARG=""
-    if [ -n "$MODEL" ]; then
-        MODEL_ARG="--model $MODEL"
-    fi
-
-    run_with_timeout "claude -p $MODEL_ARG \"\$(cat \"$PROMPT_FILE\")\"" > "$OUTPUT_FILE" 2>&1 || {
+    run_claude || {
         EXIT_CODE=$?
-        echo "ERROR: Claude invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+        if [ $EXIT_CODE -eq 124 ]; then
+            echo "TIMEOUT: Did not respond within ${TIMEOUT_SECONDS}s" >> "$OUTPUT_FILE"
+        else
+            echo "ERROR: Claude invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+        fi
     }
 fi
-
-# Clean up
-rm -f "$PROMPT_FILE"
 
 # Check if we got a response
 if [ ! -s "$OUTPUT_FILE" ]; then

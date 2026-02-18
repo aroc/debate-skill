@@ -64,6 +64,8 @@ The `--model` value is passed directly to the CLI, so use whatever model identif
 
 ## Orchestration Steps
 
+**Important:** The skill's base directory is provided when the skill is invoked (shown as "Base directory for this skill: ..."). Use this as `SKILL_DIR` in all script paths below.
+
 ### Step 1: Gather Context
 
 Based on the topic, gather relevant context:
@@ -120,18 +122,18 @@ Use the invoke script with explicit opponent, optional model, and optional reaso
 
 ```bash
 # Basic invocation (opponent required)
-bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+bash $SKILL_DIR/scripts/invoke_other.sh \
     --opponent codex \
     "Your prompt here"
 
 # With specific model
-bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+bash $SKILL_DIR/scripts/invoke_other.sh \
     --opponent claude \
     --model opus \
     "Your prompt here"
 
 # With model and reasoning level (Codex only)
-bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+bash $SKILL_DIR/scripts/invoke_other.sh \
     --opponent codex \
     --model gpt-5.3-codex \
     --reasoning high \
@@ -141,7 +143,7 @@ bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
 Example critique prompt:
 
 ```bash
-bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+bash $SKILL_DIR/scripts/invoke_other.sh \
     --opponent "$OPPONENT" \
     ${MODEL:+--model "$MODEL"} \
     ${REASONING:+--reasoning "$REASONING"} \
@@ -171,7 +173,7 @@ End your response with exactly one verdict:
 ### Step 5: Parse Verdict
 
 ```bash
-python3 /Users/ericanderson/projects/debate-skill/scripts/parse_verdict.py /tmp/debate_response.txt
+python3 $SKILL_DIR/scripts/parse_verdict.py /tmp/debate_response.txt
 ```
 
 This returns: `AGREE|REVISE|DISAGREE` and the explanation.
