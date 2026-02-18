@@ -71,6 +71,18 @@ The `--model` value passes through to the CLI, so use whatever that CLI accepts.
 - Run `codex --help` to see available models
 - Defaults to your `~/.codex/config.toml` setting
 
+### Reasoning Level (Codex only)
+
+Control how much "thinking" Codex does with `--reasoning`:
+
+```bash
+/debate --vs codex --reasoning low quick check    # Fast, less thorough
+/debate --vs codex --reasoning medium balanced    # Balanced
+/debate --vs codex --reasoning high deep analysis # Thorough, slower
+```
+
+This maps to Codex's `model_reasoning_effort` config.
+
 ### Quick Mode
 
 Get a single round of feedback without iterating to consensus:

@@ -1,12 +1,13 @@
 #!/bin/bash
 # invoke_other.sh - Invoke an AI model for debate
 #
-# Usage: ./invoke_other.sh --opponent <claude|codex> [--model <model>] "prompt text"
+# Usage: ./invoke_other.sh --opponent <claude|codex> [--model <model>] [--reasoning <level>] "prompt text"
 #
 # Arguments:
-#   --opponent  Which CLI to invoke: "claude" or "codex"
-#   --model     Optional model override (e.g., "opus", "sonnet", "o3", "gpt-4.1")
-#   prompt      The prompt text (last positional argument)
+#   --opponent   Which CLI to invoke: "claude" or "codex"
+#   --model      Optional model override (e.g., "opus", "sonnet", "o3", "gpt-4.1")
+#   --reasoning  Reasoning effort level for Codex: "low", "medium", "high" (default: high)
+#   prompt       The prompt text (last positional argument)
 #
 # Output is written to /tmp/debate_response.txt
 
@@ -15,6 +16,7 @@ set -e
 # Parse arguments
 OPPONENT=""
 MODEL=""
+REASONING=""
 PROMPT=""
 
 while [[ $# -gt 0 ]]; do
@@ -25,6 +27,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --model)
             MODEL="$2"
+            shift 2
+            ;;
+        --reasoning)
+            REASONING="$2"
             shift 2
             ;;
         *)
@@ -63,6 +69,9 @@ echo "Invoking: $OPPONENT" >&2
 if [ -n "$MODEL" ]; then
     echo "Model: $MODEL" >&2
 fi
+if [ -n "$REASONING" ]; then
+    echo "Reasoning: $REASONING" >&2
+fi
 
 # Create a temporary file for the prompt
 PROMPT_FILE=$(mktemp)
@@ -90,12 +99,18 @@ if [ "$OPPONENT" = "codex" ]; then
     # --full-auto approves all actions automatically
     # -o writes last message to file
     # -m specifies model
+    # -c model_reasoning_effort sets thinking level
     MODEL_ARG=""
     if [ -n "$MODEL" ]; then
         MODEL_ARG="-m $MODEL"
     fi
 
-    run_with_timeout "codex exec --full-auto $MODEL_ARG -o \"$OUTPUT_FILE\" \"\$(cat \"$PROMPT_FILE\")\"" 2>&1 || {
+    REASONING_ARG=""
+    if [ -n "$REASONING" ]; then
+        REASONING_ARG="-c model_reasoning_effort=\"$REASONING\""
+    fi
+
+    run_with_timeout "codex exec --full-auto $MODEL_ARG $REASONING_ARG -o \"$OUTPUT_FILE\" \"\$(cat \"$PROMPT_FILE\")\"" 2>&1 || {
         EXIT_CODE=$?
         echo "ERROR: Codex invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
     }

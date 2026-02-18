@@ -22,6 +22,7 @@ This skill activates when:
 
 - `--vs <claude|codex>`: Choose opponent (default: auto-detect opposite of current)
 - `--model <model>`: Specify opponent's model (e.g., `opus`, `sonnet`, `o3`, `gpt-4.1`)
+- `--reasoning <level>`: Codex reasoning effort: `low`, `medium`, `high` (default: from config)
 - `--quick`: Single round only, get feedback without iterating to consensus
 - Topic: Any technical question, code review request, or decision point
 
@@ -36,6 +37,12 @@ This skill activates when:
 
 # Debate with Codex using a specific model
 /debate --vs codex --model o3 review my authentication changes
+
+# Debate with Codex with low reasoning (faster, cheaper)
+/debate --vs codex --model gpt-5.3-codex --reasoning low quick sanity check
+
+# Debate with Codex with high reasoning (thorough analysis)
+/debate --vs codex --reasoning high review this complex algorithm
 
 # Quick single-round feedback from Codex
 /debate --quick --vs codex what do you think of this API design?
@@ -109,7 +116,7 @@ fi
 
 ### Step 4: Invoke Opponent
 
-Use the invoke script with explicit opponent and optional model:
+Use the invoke script with explicit opponent, optional model, and optional reasoning level:
 
 ```bash
 # Basic invocation (opponent required)
@@ -122,6 +129,13 @@ bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
     --opponent claude \
     --model opus \
     "Your prompt here"
+
+# With model and reasoning level (Codex only)
+bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
+    --opponent codex \
+    --model gpt-5.3-codex \
+    --reasoning high \
+    "Your prompt here"
 ```
 
 Example critique prompt:
@@ -130,6 +144,7 @@ Example critique prompt:
 bash /Users/ericanderson/projects/debate-skill/scripts/invoke_other.sh \
     --opponent "$OPPONENT" \
     ${MODEL:+--model "$MODEL"} \
+    ${REASONING:+--reasoning "$REASONING"} \
     "
 You are reviewing a proposal.
 
