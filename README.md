@@ -1,6 +1,6 @@
-# debate-skill
+# "Debate" agent skill
 
-A Claude Code skill that orchestrates debates between Claude and Codex until they reach consensus.
+An agent skill that orchestrates debates between Claude and Codex until they reach consensus.
 
 ## Installation
 
