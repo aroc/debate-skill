@@ -54,24 +54,43 @@ echo "$PROMPT" > "$PROMPT_FILE"
 if [ "$OTHER_CLI" = "codex" ]; then
     # Codex invocation - using exec for non-interactive mode
     # --full-auto approves all actions automatically
-    timeout "$TIMEOUT_SECONDS" codex exec --full-auto -q "$(cat "$PROMPT_FILE")" > "$OUTPUT_FILE" 2>&1 || {
-        EXIT_CODE=$?
-        if [ $EXIT_CODE -eq 124 ]; then
-            echo "TIMEOUT: Codex did not respond within ${TIMEOUT_SECONDS}s" > "$OUTPUT_FILE"
-        else
+    # -o writes last message to file
+    if command -v gtimeout &> /dev/null; then
+        gtimeout "$TIMEOUT_SECONDS" codex exec --full-auto -o "$OUTPUT_FILE" "$(cat "$PROMPT_FILE")" 2>&1 || {
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+                echo "TIMEOUT: Codex did not respond within ${TIMEOUT_SECONDS}s" > "$OUTPUT_FILE"
+            else
+                # Don't overwrite - codex may have written partial output
+                echo "ERROR: Codex invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+            fi
+        }
+    else
+        # No timeout available, run without timeout
+        codex exec --full-auto -o "$OUTPUT_FILE" "$(cat "$PROMPT_FILE")" 2>&1 || {
+            EXIT_CODE=$?
             echo "ERROR: Codex invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
-        fi
-    }
+        }
+    fi
 else
     # Claude invocation - using -p for print mode (non-interactive)
-    timeout "$TIMEOUT_SECONDS" claude -p "$(cat "$PROMPT_FILE")" > "$OUTPUT_FILE" 2>&1 || {
-        EXIT_CODE=$?
-        if [ $EXIT_CODE -eq 124 ]; then
-            echo "TIMEOUT: Claude did not respond within ${TIMEOUT_SECONDS}s" > "$OUTPUT_FILE"
-        else
+    # Use gtimeout on macOS (from coreutils) or skip timeout if not available
+    if command -v gtimeout &> /dev/null; then
+        gtimeout "$TIMEOUT_SECONDS" claude -p "$(cat "$PROMPT_FILE")" > "$OUTPUT_FILE" 2>&1 || {
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+                echo "TIMEOUT: Claude did not respond within ${TIMEOUT_SECONDS}s" > "$OUTPUT_FILE"
+            else
+                echo "ERROR: Claude invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+            fi
+        }
+    else
+        # No timeout available, run without timeout
+        claude -p "$(cat "$PROMPT_FILE")" > "$OUTPUT_FILE" 2>&1 || {
+            EXIT_CODE=$?
             echo "ERROR: Claude invocation failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
-        fi
-    }
+        }
+    fi
 fi
 
 # Clean up
