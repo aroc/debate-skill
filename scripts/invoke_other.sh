@@ -156,9 +156,9 @@ run_claude() {
     args+=("$(cat "$PROMPT_FILE")")
 
     if [ -n "$TIMEOUT_CMD" ]; then
-        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" claude "${args[@]}" > "$OUTPUT_FILE" 2>&1
+        "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" claude "${args[@]}" < /dev/null > "$OUTPUT_FILE" 2>&1
     else
-        claude "${args[@]}" > "$OUTPUT_FILE" 2>&1
+        claude "${args[@]}" < /dev/null > "$OUTPUT_FILE" 2>&1
     fi
 }
 
